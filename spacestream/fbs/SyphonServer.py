@@ -8,6 +8,7 @@ import glfw
 def monkeypatch_ctypes():
     import os
     import ctypes.util
+
     uname = os.uname()
     if uname.sysname == "Darwin" and uname.release >= "20.":
         real_find_library = ctypes.util.find_library
@@ -35,10 +36,13 @@ from spacestream.fbs.FrameBufferSharingServer import FrameBufferSharingServer
 
 
 class SyphonServer(FrameBufferSharingServer):
-    def __init__(self, name: str = "SyphonServer"):
-        super().__init__(name)
+    def __init__(
+        self, sender_name: str = "SyphonSender", receiver_name: str = "SyphonReciever"
+    ):
+        super().__init__(sender_name)
 
-        self.ctx: Optional[syphonpy.SyphonServer] = None
+        self.sender: Optional[syphonpy.SyphonServer] = None
+        self.receiver: Optional[syphonpy.SyphonClient] = None
         self.texture: Optional[glGenTextures] = None
 
         self._window: Optional[Any] = None
@@ -47,19 +51,25 @@ class SyphonServer(FrameBufferSharingServer):
         # setup spout
         self._create_gl_context()
 
-        self.ctx = syphonpy.SyphonServer(self.name)
-        if self.ctx.error_state():
+        self.sender = syphonpy.SyphonServer(self.sender_name)
+        if self.sender.error_state():
             logging.error("error in syphonserver")
+        self.receiver = syphonpy.SyphonClient(self.receiver_name)
         self.texture = glGenTextures(1)
 
     def send(self, frame: np.array):
         h, w = frame.shape[:2]
 
         self._numpy_to_texture(frame, w, h)
-        self.ctx.publish_frame_texture(self.texture, syphonpy.MakeRect(0, 0, w, h), syphonpy.MakeSize(w, h), False)
+        self.sender.publish_frame_texture(
+            self.texture, syphonpy.MakeRect(0, 0, w, h), syphonpy.MakeSize(w, h), False
+        )
+
+    def receive(self):
+        pass
 
     def release(self):
-        self.ctx.stop()
+        self.sender.stop()
         self._release_gl_context()
 
     def _numpy_to_texture(self, image: np.ndarray, w: int, h: int):

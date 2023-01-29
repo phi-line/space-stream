@@ -6,8 +6,9 @@ import visiongraph as vg
 
 
 class FrameBufferSharingServer(vg.GraphNode, ABC):
-    def __init__(self, name: str):
-        self.name = name
+    def __init__(self, sender_name: str, receiver_name: str):
+        self.sender_name = sender_name
+        self.receiver_name = receiver_name
 
     @abstractmethod
     def send(self, frame: np.array):
@@ -17,12 +18,12 @@ class FrameBufferSharingServer(vg.GraphNode, ABC):
         self.send(data)
 
     @staticmethod
-    def create(name: str):
+    def create(sender_name: str):
         if platform.startswith("darwin"):
             from spacestream.fbs.SyphonServer import SyphonServer
-            return SyphonServer(name)
+            return SyphonServer(sender_name, receiver_name)
         elif platform.startswith("win"):
             from spacestream.fbs.SpoutServer import SpoutServer
-            return SpoutServer(name)
+            return SpoutServer(sender_name, receiver_name)
         else:
             raise Exception(f"Platform {platform} is not supported!")
